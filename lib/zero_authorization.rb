@@ -1,3 +1,5 @@
+require 'rails'
+require 'active_record'
 require 'active_support/core_ext'
 require "zero_authorization/version"
 require 'zero_authorization/exceptions'
@@ -184,3 +186,4 @@ module ZeroAuthorization
   end
 
 end
+
