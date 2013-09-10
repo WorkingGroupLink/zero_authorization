@@ -184,9 +184,3 @@ module ZeroAuthorization
   end
 
 end
-
-
-Rails.application.eager_load!
-ActiveRecord::Base.descendants.each do |descendant|
-  descendant.send(:include, ZeroAuthorization::Engine)
-end
