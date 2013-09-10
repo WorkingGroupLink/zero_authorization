@@ -1,4 +1,4 @@
-require 'activesupport/lib/active_support/core_ext/'
+require 'active_support/core_ext'
 require "zero_authorization/version"
 require 'zero_authorization/exceptions'
 
