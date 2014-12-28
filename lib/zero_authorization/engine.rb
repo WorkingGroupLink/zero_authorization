@@ -73,6 +73,7 @@ module ZeroAuthorization
 
       # Core of authorization after reading/parsing rule set for current role
       # Rules of execution (Precedence: from top to bottom)
+      # Rule 00: If no rule-sets are available for 'can do' and 'cant do' then authorized true '(with warning message)'
       # Rule 01: If role can't do 'anything' or can do 'nothing' then authorized false
       # Rule 02: If role can't do 'nothing' or can do 'anything' then authorized true
       # Rule 03: If role can't do 'specified' method and given evaluate method returns true then authorized false
@@ -87,6 +88,12 @@ module ZeroAuthorization
         cant_rights = role.cant_do_rights(self.class.name)
         cant_rights_names = cant_rights.keys
 
+        if can_rights.empty? and cant_rights.empty?  #Rule 00
+          _temp_i = "#{self.class.name} is exempted from ZeroAuthorization. To enable back, try adding rule-set(s) in role_n_privileges.yml"
+          puts _temp_i
+          Rails.logger.info _temp_i
+          return true
+        end
         return false if cant_rights_names.include?(:anything) or can_rights_names.include?(:nothing) #Rule 01
         return true if cant_rights_names.include?(:nothing) or can_rights_names.include?(:anything) #Rule 02
         return (self.send(cant_rights[action.to_sym]) ? false : true) unless cant_rights[action.to_sym].nil? # Rule 03 and Rule 04
