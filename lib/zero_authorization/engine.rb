@@ -72,23 +72,23 @@ module ZeroAuthorization
       end
 
       # Core of authorization after reading/parsing rule set for current role
-      # Rules of execution (Precedence: from top to bottom)
-      # Rule 00: If no rule-sets are available for 'can do' and 'cant do' then authorized true '(with warning message)'
-      # Rule 01: If role can't do 'anything' or can do 'nothing' then authorized false
-      # Rule 02: If role can't do 'nothing' or can do 'anything' then authorized true
-      # Rule 03: If role can't do 'specified' method and given evaluate method returns true then authorized false
-      # Rule 04: If role can't do 'specified' method and given evaluate method returns false then authorized true
-      # Rule 05: If role can   do 'specified' method and given evaluate method returns true then authorized true
-      # Rule 06: If role can   do 'specified' method and given evaluate method returns false then authorized false
-      # Rule 07: If role can't do 'specified' method then authorized false
-      # Rule 08: If role can   do 'specified' method then authorized true
+      # Rules for rule-sets execution (Precedence: from top to bottom)
+      # Rule 00: If no rule-sets are available for 'can do' and 'cant do' then is authorized true '(with warning message)'.
+      # Rule 01: If role can't do 'anything' or can do 'nothing' then is authorized false.
+      # Rule 02: If role can't do 'nothing' or can do 'anything' then is authorized true.
+      # Rule 03: If role can't do 'specified' method and given 'evaluate' method returns true then is authorized false.
+      # Rule 04: If role can't do 'specified' method and given 'evaluate' method returns false then is authorized true.
+      # Rule 05: If role can   do 'specified' method and given 'evaluate' method returns true then is authorized true.
+      # Rule 06: If role can   do 'specified' method and given 'evaluate' method returns false then is authorized false.
+      # Rule 07: If role can't do 'specified' method then is authorized false.
+      # Rule 08: If role can   do 'specified' method then is authorized true.
       def zero_authorized_core(role, action)
         can_rights = role.can_do_rights(self.class.name)
         can_rights_names = can_rights.keys
         cant_rights = role.cant_do_rights(self.class.name)
         cant_rights_names = cant_rights.keys
 
-        if can_rights.empty? and cant_rights.empty?  #Rule 00
+        if can_rights.empty? and cant_rights.empty? #Rule 00
           _temp_i = "#{self.class.name} is exempted from ZeroAuthorization. To enable back, try adding rule-set(s) in role_n_privileges.yml"
           puts _temp_i
           Rails.logger.info _temp_i
