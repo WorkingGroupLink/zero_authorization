@@ -26,13 +26,12 @@ module ZeroAuthorization
       # Authorization for authorization mode :strict
       def authorize_strictly(action)
         role = ZeroAuthorization::Role.role
-        raise 'ZeroAuthorizationRoleNotAvailable' if role.nil?
+        raise ZeroAuthorization::Exceptions::RoleNotAvailable, 'Executing authorize_strictly but role not available' if role.nil?
 
         if zero_authorized_core(role, action)
           return true
         else
-          logger.debug 'ZeroAuthorization: Not authorized to perform activity.'
-          raise 'NotAuthorized'
+          raise ZeroAuthorization::Exceptions::NotAuthorized.new(role), "Not authorized to execute #{action} on #{self.class.name}."
         end
 
         false
@@ -41,7 +40,7 @@ module ZeroAuthorization
       # Authorization for authorization mode :warning
       def authorize_with_warning(action)
         role = ZeroAuthorization::Role.role
-        raise 'ZeroAuthorizationRoleNotAvailable' if role.nil?
+        raise ZeroAuthorization::Exceptions::RoleNotAvailable, 'Executing authorize_with_warning but role not available' if role.nil?
 
         if zero_authorized_core(role, action)
           return true
@@ -68,48 +67,41 @@ module ZeroAuthorization
         elsif self.class.authorization_mode == :superficial
           return authorize_superficially(action)
         else
-          raise 'InvalidAuthorizationMode'
+          raise ZeroAuthorization::Exceptions::InvalidAuthorizationMode
         end
       end
 
       # Core of authorization after reading/parsing rule set for current role
+      # Rules for rule-sets execution (Precedence: from top to bottom)
+      # Rule 00: If no rule-sets are available for 'can do' and 'cant do' then is authorized true '(with warning message)'.
+      # Rule 01: If role can't do 'anything' or can do 'nothing' then is authorized false.
+      # Rule 02: If role can't do 'nothing' or can do 'anything' then is authorized true.
+      # Rule 03: If role can't do 'specified' method and given 'evaluate' method returns true then is authorized false.
+      # Rule 04: If role can't do 'specified' method and given 'evaluate' method returns false then is authorized true.
+      # Rule 05: If role can   do 'specified' method and given 'evaluate' method returns true then is authorized true.
+      # Rule 06: If role can   do 'specified' method and given 'evaluate' method returns false then is authorized false.
+      # Rule 07: If role can't do 'specified' method then is authorized false.
+      # Rule 08: If role can   do 'specified' method then is authorized true.
       def zero_authorized_core(role, action)
-        _auth_flag = false
-        unless role.rule_set[:can_do].nil?
-          if role.rule_set[:can_do] == :anything
-            _auth_flag = true
+        can_rights = role.can_do_rights(self.class.name)
+        can_rights_names = can_rights.keys
+        cant_rights = role.cant_do_rights(self.class.name)
+        cant_rights_names = cant_rights.keys
 
-          elsif role.rule_set[:can_do].is_a?(Hash)
+        if can_rights.empty? and cant_rights.empty? #Rule 00
+          _temp_i = "#{self.class.name} is exempted from ZeroAuthorization. To enable back, try adding rule-set(s) in role_n_privileges.yml"
+          puts _temp_i
+          Rails.logger.info _temp_i
+          return true
+        end
+        return false if cant_rights_names.include?(:anything) or can_rights_names.include?(:nothing) #Rule 01
+        return true if cant_rights_names.include?(:nothing) or can_rights_names.include?(:anything) #Rule 02
+        return (self.send(cant_rights[action.to_sym]) ? false : true) unless cant_rights[action.to_sym].nil? # Rule 03 and Rule 04
+        return (self.send(can_rights[action.to_sym]) ? true : false) unless can_rights[action.to_sym].nil? # Rule 05 and Rule 06
+        return false if cant_rights_names.include?(action.to_sym) # Rule 07
+        return true if can_rights_names.include?(action.to_sym) # Rule 08
 
-            if role.rule_set[:can_do][self.class.name.to_sym] == :anything
-              _auth_flag = true
-            else
-              logger.debug "----------- self.class.name.to_sym: #{self.class.name.to_sym}"
-              symbolized_actions = role.rule_set[:can_do][self.class.name.to_sym].collect { |x| x if x.is_a?(Symbol) }.compact
-              _auth_flag = if symbolized_actions.include?(action)
-                             true
-                           else
-                             conditional_check =nil
-                             (role.rule_set[:can_do][self.class.name.to_sym]- symbolized_actions).each do |action_rule_hash|
-                               conditional_check = action_rule_hash[action] if action_rule_hash.keys.include? action
-                             end
-                             conditional_check ||= {}
-                             conditional_check= conditional_check[:if]
-                             return self.send(conditional_check) unless conditional_check.nil?
-                             false
-                           end
-              #_auth_flag = true if (role.rule_set[:can_do][self.class.name.to_sym] || []).include?(action)
-            end
-          end
-        end
-        unless role.rule_set[:cant_do].nil?
-          if role.rule_set[:cant_do] == :anything
-            _auth_flag = false
-          elsif role.rule_set[:cant_do].is_a?(Hash)
-            _auth_flag = false if (role.rule_set[:cant_do][self.class.name.to_sym] || []).include?(action)
-          end
-        end
-        _auth_flag
+        raise ZeroAuthorization::Exceptions::ExecutingUnreachableCode
       end
 
       def is_zero_authorized_4_save
@@ -132,25 +124,12 @@ module ZeroAuthorization
     module ClassMethods
       attr_accessor :authorization_mode
 
+      def declared_methods_to_restrict
+        Role.methods_marked_for(self.name).keys
+      end
+
       def list_of_methods_to_guard
-        _model_methods_set = {}
-        Role.roles_n_privileges_hash.each do |role_key, permission_value|
-          unless permission_value[:can_do].nil?
-            _model_methods_set = _model_methods_set.merge(permission_value[:can_do]) { |key, oval, nval| ([oval] << [nval]).flatten.compact.uniq } if permission_value[:can_do].is_a?(Hash)
-          end
-          unless permission_value[:cant_do].nil?
-            _model_methods_set = _model_methods_set.merge(permission_value[:cant_do]) { |key, oval, nval| ([oval] << [nval]).flatten.compact.uniq } if permission_value[:cant_do].is_a?(Hash)
-          end
-        end
-        if _model_methods_set[self.name.to_sym] == :anything
-          _model_methods_set.delete(self.name.to_sym)
-        end
-        (_model_methods_set[self.name.to_sym] || []).clone.delete_if do |x|
-          if x.is_a? Hash
-            x= x.keys.first
-          end
-          [:create, :save, :update, :destroy, :anything].include?(x)
-        end
+        declared_methods_to_restrict - [:create, :save, :update, :destroy, :anything, :nothing]
       end
 
       private
@@ -161,13 +140,18 @@ module ZeroAuthorization
       # applying restriction on methods
       def initialize_methods_restriction
         list_of_methods_to_guard.each do |method_name|
-          if method_name.is_a? Hash
-            method_name = method_name.keys.first
-          end
-          send(:alias_method, "za_#{method_name}", method_name)
-          define_method "#{method_name}" do |*args|
-            puts 'Restricted method call..'
-            send("za_#{method_name}", *args) if zero_authorized_checker(method_name)
+          if self.instance_methods.include?(method_name)
+            send(:alias_method, "za_#{method_name}", method_name)
+            define_method "#{method_name}" do |*args|
+              _temp_i = "Restricted method call to #{self.class.name}#{method_name}.."
+              puts _temp_i
+              Rails.logger.debug(_temp_i)
+              send("za_#{method_name}", *args) if zero_authorized_checker(method_name)
+            end
+          else
+            _temp_i = "[WARNING] ZeroAuthorization: Method '#{method_name}' unavailable in #{self.name} for restriction application."
+            puts _temp_i
+            Rails.logger.debug(_temp_i)
           end
         end
       end

@@ -22,40 +22,37 @@ Or install it yourself as:
 
         :role_role_name_one:
           :can_do:
-            :Account:
-            - :create
-            - :save
-            - :update
+            :account:
+              - create
+              - save
+              - update
             :User:
-            - :create
-            - :save
-            - :update
-            :ModelCrudHistory: :anything
+              - :create
+              - :save
+              - :update
+            :model_crud_history: :nothing
             :Permission: :anything
           :cant_do:
             :Project:
             - :destroy
+            :model_crud_history: :anything
         :role_role_name_two:
           :can_do:
             :Project:
-            - :create
-            - :save:
-                :if:
-                  :authorize?
-            - :update:
-                :if:
-                  :authorize?
-            - :destroy:
-                :if:
-                  :authorize?
+              - create
+              - save: is_authorized?
+              - :update: is_authorized?
+              - :destroy: is_authorized?
+            :user:
+              create: :create_authorized?
+              save: :update_authorized?
+              update: :update_authorized?
         :role_role_name_three:
           :can_do:
-            :Plant:
-            - :create
-            - :save
-            - :update
-            - :destroy
-          :cant_do: :anything
+            - :Project
+            - :Organization
+          :cant_do:
+            - :User
 
 2. Restrict models for activity and let rule-set(s) via zero-authorization take control of activity
 
@@ -74,6 +71,18 @@ Or install it yourself as:
         end
 
 4. (Re-)boot application.
+
+## Rules for rule-sets execution (Precedence: from top to bottom)
+
+    1. Rule 00: If no rule-sets are available for 'can do' and 'cant do' then is authorized true '(with warning message)'.
+    2. Rule 01: If role can't do 'anything' or can do 'nothing' then is authorized false.
+    3. Rule 02: If role can't do 'nothing' or can do 'anything' then is authorized true.
+    4. Rule 03: If role can't do 'specified' method and given 'evaluate' method returns true then is authorized false.
+    5. Rule 04: If role can't do 'specified' method and given 'evaluate' method returns false then is authorized true.
+    6. Rule 05: If role can   do 'specified' method and given 'evaluate' method returns true then is authorized true.
+    7. Rule 06: If role can   do 'specified' method and given 'evaluate' method returns false then is authorized false.
+    8. Rule 07: If role can't do 'specified' method then is authorized false.
+    9. Rule 08: If role can   do 'specified' method then is authorized true.
 
 ## Contributing
 
