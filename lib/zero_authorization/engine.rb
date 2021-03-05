@@ -34,7 +34,7 @@ module ZeroAuthorization
           raise ZeroAuthorization::Exceptions::NotAuthorized.new(role), "Not authorized to execute #{action} on #{self.class.name}."
         end
 
-        false
+        throw(:abort)
       end
 
       # Authorization for authorization mode :warning
@@ -49,7 +49,7 @@ module ZeroAuthorization
           self.errors.add(:authorization_error, 'occurred, Unauthorized to perform this activity')
         end
 
-        false
+        throw(:abort)
       end
 
       # Authorization for authorization mode :superficial
