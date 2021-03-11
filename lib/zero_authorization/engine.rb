@@ -20,8 +20,9 @@ module ZeroAuthorization
       base.send(:before_update, :is_zero_authorized_4_update)
       base.send(:before_destroy, :is_zero_authorized_4_destroy)
 
-
-      private
+      # Ruby 2.7.2 warning: calling private without arguments inside a method may not have the intended effect
+      # but I found no advice what to do about it
+      # private
 
       # Authorization for authorization mode :strict
       def authorize_strictly(action)
