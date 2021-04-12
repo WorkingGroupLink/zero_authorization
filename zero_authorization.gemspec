@@ -1,7 +1,7 @@
 # coding: utf-8
 Gem::Specification.new do |spec|
   spec.name          = "zero_authorization"
-  spec.version       = "2.0.1"
+  spec.version       = "2.0.2"
   spec.authors       = ["Michal Kracik", "Mike Bijon", "Rajeev Kannav Sharma", "Praveen Kumar Sinha"]
   spec.email         = ["rajeevsharma86@gmail.com", "praveen.kumar.sinha@gmail.com"]
   spec.description   = "Functionality to add authorization on Rails model write operations plus any other set of defined methods."

@@ -1,7 +1,8 @@
 module ZeroAuthorization
 
   class Role
-    cattr_writer :role
+    # thread-local, requires Rails 5
+    thread_mattr_accessor :private_role, instance_accessor: false
 
     # Initializing role
     def initialize(role_name)
@@ -17,9 +18,9 @@ module ZeroAuthorization
       self.class.roles_n_privileges_hash["role_#{@role_name}".to_sym]
     end
 
-    #Returns a valid role if available defined from config/roles_n_privileges.yml else a nil
-    def self.role
-      roles_n_privileges_hash.keys.collect { |key| key.to_s.gsub(/^role_/, '') }.include?(@@role) ? new(@@role) : nil
+    # Sets a valid role if available defined from config/roles_n_privileges.yml else a nil
+    def self.role=(role_as_string)
+      self.private_role = roles_n_privileges_hash.keys.collect { |key| key.to_s.gsub(/^role_/, '') }.include?(role_as_string) ? new(role_as_string) : nil
     end
 
     def can_do_rights(for_classname)
@@ -139,12 +140,11 @@ module ZeroAuthorization
     #    patron.some_restricted_method_call!
     #  end
     #end
-    def self.temp_role(temp_role, &block)
-      _current_role = self.role.nil? ? self.role : self.role.to_s
-      self.role=temp_role
+    def self.temp_role(temp_role_as_string, &block)
+      _current_role = self.private_role
+      self.role = temp_role_as_string
       yield
-      self.role=_current_role
+      self.private_role = _current_role
     end
-
   end
 end

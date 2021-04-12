@@ -26,7 +26,7 @@ module ZeroAuthorization
 
       # Authorization for authorization mode :strict
       def authorize_strictly(action)
-        role = ZeroAuthorization::Role.role
+        role = ZeroAuthorization::Role.private_role
         raise ZeroAuthorization::Exceptions::RoleNotAvailable, 'Executing authorize_strictly but role not available' if role.nil?
 
         if zero_authorized_core(role, action)
@@ -40,7 +40,7 @@ module ZeroAuthorization
 
       # Authorization for authorization mode :warning
       def authorize_with_warning(action)
-        role = ZeroAuthorization::Role.role
+        role = ZeroAuthorization::Role.private_role
         raise ZeroAuthorization::Exceptions::RoleNotAvailable, 'Executing authorize_with_warning but role not available' if role.nil?
 
         if zero_authorized_core(role, action)
